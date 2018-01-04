@@ -24,7 +24,7 @@ public interface ParkingLotService {
 
         @Override
         public void updateParkingLot(Long id, ParkingLot parkingLot) {
-            log.error("Can not update parking lots. Could not connect to parking-lot-service");
+            log.error("Cannot update parking lots. Could not connect to parking-lot-service");
         }
     }
 }
