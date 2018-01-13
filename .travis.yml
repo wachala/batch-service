@@ -8,10 +8,6 @@ cache:
 services:
   - docker
 
-branches:
-  only:
-    - master
-
 notifications:
   email: false
   slack:
