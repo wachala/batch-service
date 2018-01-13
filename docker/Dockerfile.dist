@@ -1,0 +1,4 @@
+FROM maven:3-jdk-8-slim
+COPY "target/batch-service-1.0-SNAPSHOT.jar" "/webapp/"
+EXPOSE 8769
+CMD java -jar /webapp/batch-service-1.0-SNAPSHOT.jar
