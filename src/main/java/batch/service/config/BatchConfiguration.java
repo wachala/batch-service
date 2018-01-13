@@ -1,8 +1,10 @@
 package batch.service.config;
 
+import batch.service.event.generator.model.ParkingLotEvent;
 import batch.service.listener.JobCompletionNotificationListener;
-import batch.service.model.ParkingLotEvent;
 import batch.service.processor.ParkingLotEventProcessor;
+import batch.service.reader.ParkingLotEventQueue;
+import batch.service.reader.ParkingLotEventReader;
 import batch.service.service.ParkingLotService;
 import lombok.extern.java.Log;
 import org.springframework.batch.core.*;
@@ -13,14 +15,9 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
-import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import javax.sql.DataSource;
@@ -32,19 +29,18 @@ import java.time.LocalDateTime;
 public class BatchConfiguration {
 
     @Autowired
-    private JobLauncher jobLauncher;
-
-    @Autowired
     public JobBuilderFactory jobBuilderFactory;
-
     @Autowired
     public StepBuilderFactory stepBuilderFactory;
-
     @Autowired
     public DataSource dataSource;
-
+    @Autowired
+    private JobLauncher jobLauncher;
     @Autowired
     private ParkingLotService parkingLotService;
+
+    @Autowired
+    private ParkingLotEventQueue eventQueue;
 
     @Autowired
     private JobCompletionNotificationListener jobCompletionNotificationListener;
@@ -61,19 +57,8 @@ public class BatchConfiguration {
         log.info("Job finished with status :" + execution.getStatus());
     }
 
-    @Bean
-    public FlatFileItemReader<ParkingLotEvent> reader() {
-        FlatFileItemReader<ParkingLotEvent> reader = new FlatFileItemReader<>();
-        reader.setResource(new ClassPathResource("sample-data.csv"));
-        reader.setLineMapper(new DefaultLineMapper<ParkingLotEvent>() {{
-            setLineTokenizer(new DelimitedLineTokenizer() {{
-                setNames(new String[] { "eventType", "parkingLotId", "parkingLotType", "spots" });
-            }});
-            setFieldSetMapper(new BeanWrapperFieldSetMapper<ParkingLotEvent>() {{
-                setTargetType(ParkingLotEvent.class);
-            }});
-        }});
-        return reader;
+    public ParkingLotEventReader reader() {
+        return new ParkingLotEventReader(eventQueue);
     }
 
     @Bean
@@ -105,7 +90,7 @@ public class BatchConfiguration {
     @Bean
     public Step step() {
         return stepBuilderFactory.get("step")
-                .<ParkingLotEvent, ParkingLotEvent> chunk(2)
+                .<ParkingLotEvent, ParkingLotEvent>chunk(2)
                 .reader(reader())
                 .processor(processor())
                 .writer(writer())
